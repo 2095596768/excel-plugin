@@ -1,15 +1,62 @@
-.vscode/**
-.vscode-test/**
+# .vscodeignore — 为 VS Code 插件打包定制的忽略规则
+# 保留必要的发布文件（通过否定模式强制包含）
+!package.json
+!README.md
+!CHANGELOG.md
+!LICENSE
+!media/**
+!webview/**
+!out/**
+
+# 常见要忽略的开发/源码文件
 src/**
-.gitignore
-.yarnrc
-vsc-extension-quickstart.md
-**/tsconfig.json
-**/eslint.config.mjs
-**/*.map
 **/*.ts
-**/.vscode-test.*
-node_modules/
-.git/
+**/*.tsx
+test/**
+tests/**
+*.test.js
+*.test.ts
+
+# Node 依赖与构建产物
+node_modules/**
+!node_modules/xlsx/**
+!node_modules/xlsx
+dist/**
+*.tsbuildinfo
+out/**/*.map
+*.map
+
+# 编辑器 / Git / 打包相关
+.vscode/**
+!.vscode/launch.json
+!.vscode/tasks.json
+.git/**
 .gitignore
-webpack.config.js
+.gitattributes
+*.vsix
+.vscodeignore
+
+# 日志与临时文件
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+lerna-debug.log
+*.log
+logs/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# 工具配置（通常不需要发布）
+tsconfig.json
+eslint.config.mjs
+.prettierrc
+.prettierignore
+.eslintrc.json
+.eslintignore
+
+# 保留 webview 与 media 资源（显式列出以防被上面的模式误排除）
+!webview/**
+!media/**

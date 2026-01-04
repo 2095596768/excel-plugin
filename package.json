@@ -173,5 +173,9 @@
     "color": "#4CAF50",
     "theme": "dark"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/2095596768/excel-plugin.git"
+  }
 }
