@@ -70,5 +70,5 @@ ExcelPlugin 是一个强大的 VS Code 扩展，旨在将 Excel 电子表格的�
 
 1.  **克隆仓库**:
     ```bash
-    git clone https://github.com/your-username/excel-plugin.git
+    git clone https://github.com/2095596768/excel-plugin.git
     cd excel-plugin

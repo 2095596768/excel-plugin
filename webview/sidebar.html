@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Excel编辑器</title>
+  <style>
+    /* CSS将内联在sidebar.css中 */
+  </style>
+  <link rel="stylesheet" href="${styleUri}">
+</head>
+<body>
+  <div class="container">
+    <div class="header-section">
+      <div class="header-top">
+        <div class="header-left">
+          <h3>Excel编辑</h3>
+          <div class="status-indicator ${statusClass}" id="statusIndicator">
+            ${statusIcon} ${statusText}
+          </div>
+        </div>
+        <div class="header-right">
+          <button class="close-btn" onclick="toggleExtension()" title="${toggleBtnText}">${toggleBtnText}</button>
+        </div>
+      </div>
+      
+      <div class="file-info" id="fileInfo">
+        <div>未打开Excel文件</div>
+      </div>
+      
+      <div class="file-stats" id="fileStats">
+        <span>行数: 0</span>
+        <span>列数: 0</span>
+        <span>当前行: 无</span>
+      </div>
+    </div>
+    
+    <div class="main-content" id="mainContent">
+      <div class="form-container" id="formContainer" style="display: none;">
+        <div class="form-scroll-container">
+          <div id="formFields"></div>
+        </div>
+      </div>
+      
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">📊</div>
+        <h3>Excel编辑器</h3>
+        <p>打开一个Excel文件开始编辑</p>
+        <div class="empty-actions">
+          <button onclick="openExcel()" class="primary-btn">打开Excel文件</button>
+          <p class="hint">支持 .xlsx, .xls, .xlsm, .xlsb 格式</p>
+          <p class="hint">提示：在编辑器中打开文件会自动加载</p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer-section">
+      <button class="add-row-btn" onclick="addRow()" id="addRowBtn">添加新行</button>
+    </div>
+  </div>
+  
+  <script src="${scriptUri}"></script>
+</body>
+</html>

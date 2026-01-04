@@ -1,0 +1,177 @@
+{
+  "name": "excel-plugin",
+  "displayName": "ExcelPlugin",
+  "description": "Excel文件编辑器 - 支持在VS Code中编辑Excel文件，双向绑定表单与编辑器",
+  "version": "1.0.0",
+  "publisher": "vscode-plugin",
+  "engines": {
+    "vscode": "^1.107.0"
+  },
+  "categories": [
+    "Other",
+    "Formatters",
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onView:excelPlugin.sidebar",
+    "onCommand:excelPlugin.toggleStatus",
+    "onCommand:excelPlugin.openExcel",
+    "onCommand:excelPlugin.addRow",
+    "onCommand:excelPlugin.updateCell",
+    "onCommand:excelPlugin.refresh",
+    "onCommand:excelPlugin.activate",
+    "onCommand:excelPlugin.deactivate",
+    "onCommand:excelPlugin.startEditing",
+    "onCommand:excelPlugin.endEditing",
+    "onLanguage:plaintext"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "excel-plugin",
+          "title": "ExcelPlugin",
+          "icon": "media/excel.svg"
+        }
+      ]
+    },
+    "views": {
+      "excel-plugin": [
+        {
+          "type": "webview",
+          "id": "excelPlugin.sidebar",
+          "name": "ExcelPlugin",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "excelPlugin.openExcel",
+        "title": "打开Excel文件",
+        "category": "ExcelPlugin"
+      },
+      {
+        "command": "excelPlugin.toggleStatus",
+        "title": "切换Excel编辑器状态",
+        "category": "ExcelPlugin"
+      },
+      {
+        "command": "excelPlugin.addRow",
+        "title": "添加新行",
+        "category": "ExcelPlugin"
+      },
+      {
+        "command": "excelPlugin.updateCell",
+        "title": "更新单元格",
+        "category": "ExcelPlugin"
+      },
+      {
+        "command": "excelPlugin.refresh",
+        "title": "刷新表单",
+        "category": "ExcelPlugin"
+      },
+      {
+        "command": "excelPlugin.showSidebar",
+        "title": "显示Excel编辑器侧边栏",
+        "category": "ExcelPlugin"
+      },
+      {
+        "command": "excelPlugin.hideSidebar",
+        "title": "隐藏Excel编辑器侧边栏",
+        "category": "ExcelPluginr"
+      },
+      {
+        "command": "excelPlugin.activate",
+        "title": "激活Excel编辑器",
+        "category": "ExcelPlugin"
+      },
+      {
+        "command": "excelPlugin.deactivate",
+        "title": "关闭Excel编辑器",
+        "category": "ExcelPlugin"
+      },
+      {
+        "command": "excelPlugin.startEditing",
+        "title": "开始编辑表单",
+        "category": "ExcelPlugin"
+      },
+      {
+        "command": "excelPlugin.endEditing",
+        "title": "结束编辑表单",
+        "category": "ExcelPlugin"
+      }
+    ],
+    
+    "keybindings": [
+      {
+        "command": "excelPlugin.toggleStatus",
+        "key": "ctrl+0",
+        "mac": "cmd+0",
+        "when": "editorTextFocus"
+      }
+    ],
+    "configuration": {
+      "title": "ExcelPlugin",
+      "properties": {
+        "excelPlugin.autoLoad": {
+          "type": "boolean",
+          "default": true,
+          "description": "是否在打开Excel文件时自动加载"
+        },
+        "excelPlugin.autoSync": {
+          "type": "boolean",
+          "default": true,
+          "description": "是否启用双向同步"
+        }
+      }
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "excelPlugin.toggleStatus",
+          "when": "view == excelPlugin.sidebar",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@types/vscode": "^1.107.0",
+    "@types/xlsx": "^0.0.35",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.39.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.1"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  },
+  "keywords": [
+    "excel",
+    "spreadsheet",
+    "editor",
+    "xlsx",
+    "xls",
+    "csv",
+    "form"
+  ],
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#4CAF50",
+    "theme": "dark"
+  },
+  "license": "MIT"
+}
