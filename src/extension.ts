@@ -787,12 +787,15 @@ export function activate(context: vscode.ExtensionContext) {
             updateCurrentLineData(editor);
           }
         } else {
-          console.log('切换到非Excel文件，清空表单');
-          if (sidebarProvider) {
-            sidebarProvider.clearData();
-            sidebarProvider.refresh();
-          }
+        console.log('切换到非Excel文件，清空表单');
+        if (sidebarProvider) {
+          sidebarProvider.clearData();
+          sidebarProvider.refresh();
         }
+        // 重置当前Excel文件和数据状态
+        currentExcelFile = undefined;
+        currentExcelData = undefined;
+      }
       } else if (isExtensionActive) {
         console.log('没有活动的编辑器或插件未激活');
         if (sidebarProvider) {

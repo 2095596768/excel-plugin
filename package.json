@@ -2,8 +2,8 @@
   "name": "excel-plugin",
   "displayName": "ExcelPlugin",
   "description": "Excel文件编辑器 - 支持在VS Code中编辑Excel文件，双向绑定表单与编辑器",
-  "version": "1.0.0",
-  "publisher": "vscode-plugin",
+  "version": "v1.0.0",
+  "publisher": "zhaoxuandong",
   "engines": {
     "vscode": "^1.107.0"
   },
@@ -103,7 +103,6 @@
         "category": "ExcelPlugin"
       }
     ],
-    
     "keybindings": [
       {
         "command": "excelPlugin.toggleStatus",
@@ -143,7 +142,8 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "package": "vsce package"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
@@ -154,7 +154,8 @@
     "@vscode/test-electron": "^2.5.2",
     "eslint": "^9.39.1",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.48.1"
+    "typescript-eslint": "^8.48.1",
+    "vsce": "^2.15.0"
   },
   "dependencies": {
     "xlsx": "^0.18.5"
@@ -169,6 +170,13 @@
     "form"
   ],
   "icon": "media/icon.png",
+  "files": [
+    "media/*",
+    "out/**/*.js",
+    "webview/**/*.{html,css,js}",
+    "package.json",
+    "README.md"
+  ],
   "galleryBanner": {
     "color": "#4CAF50",
     "theme": "dark"

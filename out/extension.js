@@ -703,6 +703,9 @@ function activate(context) {
                     sidebarProvider.clearData();
                     sidebarProvider.refresh();
                 }
+                // 重置当前Excel文件和数据状态
+                currentExcelFile = undefined;
+                currentExcelData = undefined;
             }
         }
         else if (isExtensionActive) {
