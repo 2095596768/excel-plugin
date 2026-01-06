@@ -303,10 +303,6 @@ function activate(context) {
         if (isEditingForm) {
             return;
         }
-        if (!currentExcelData) {
-            sidebarProvider.clearForm();
-            return;
-        }
         const cursorPosition = editor.selection.active;
         const currentLine = cursorPosition.line;
         // 检查是否有选中文本
@@ -320,33 +316,81 @@ function activate(context) {
             return;
         }
         const excelRowNumber = currentLine + 1;
-        const dataRowIndex = currentLine - 1;
-        if (currentLine === 0) {
-            // 表头行
-            const rowObject = {};
-            currentExcelData.headers.forEach((header) => {
-                rowObject[header] = '';
-            });
-            sidebarProvider.selectRow(rowObject, -1, excelRowNumber, true);
+        // 获取文档中的所有行
+        const lines = [];
+        for (let i = 0; i < editor.document.lineCount; i++) {
+            lines.push(editor.document.lineAt(i).text);
         }
-        else if (dataRowIndex >= 0 && dataRowIndex < currentExcelData.rows.length) {
-            // 有效数据行
-            const rowData = currentExcelData.rows[dataRowIndex];
-            const rowObject = {};
-            currentExcelData.headers.forEach((header, index) => {
-                rowObject[header] = rowData[index] || '';
-            });
-            console.log(`更新表单显示第${dataRowIndex + 1}行:`, rowObject);
-            sidebarProvider.selectRow(rowObject, dataRowIndex, excelRowNumber, true);
+        // 如果没有行，更新当前行号显示
+        if (lines.length === 0) {
+            sidebarProvider.selectRow({}, -1, excelRowNumber, true);
+            sidebarProvider.refresh();
+            return;
+        }
+        // 重新解析第一行作为表头
+        const firstLine = lines[0];
+        let headers = [];
+        if (firstLine.includes('\t')) {
+            headers = firstLine.split('\t').map((header, index) => header.trim() || `Column ${index + 1}`);
+        }
+        else if (firstLine.includes(',')) {
+            headers = firstLine.split(',').map((header, index) => header.trim() || `Column ${index + 1}`);
         }
         else {
-            // 超出数据范围或无效行
-            sidebarProvider.clearForm();
+            headers = ['Column 1'];
         }
+        // 更新currentExcelData中的headers（如果存在）
+        if (currentExcelData) {
+            currentExcelData.headers = headers;
+        }
+        // 确保侧边栏的行统计信息也得到更新
+        const documentLineCount = editor.document.lineCount;
+        sidebarProvider.updateLineStats(documentLineCount, excelRowNumber);
+        // 延迟执行selectRow，确保表单已经渲染完成
+        setTimeout(() => {
+            if (!sidebarProvider) {
+                return;
+            }
+            // 如果当前行是表头行，清空表单
+            if (currentLine === 0) {
+                const rowObject = {};
+                headers.forEach((header) => {
+                    rowObject[header] = '';
+                });
+                sidebarProvider.selectRow(rowObject, -1, excelRowNumber, true);
+            }
+            else if (currentLine > 0 && currentLine < lines.length) {
+                // 有效数据行，直接从编辑器获取当前行的最新内容
+                const currentLineText = lines[currentLine];
+                let cells;
+                // 解析当前行
+                if (currentLineText.includes('\t')) {
+                    cells = currentLineText.split('\t');
+                }
+                else if (currentLineText.includes(',')) {
+                    cells = currentLineText.split(',');
+                }
+                else {
+                    cells = [currentLineText];
+                }
+                // 创建行对象
+                const rowObject = {};
+                headers.forEach((header, index) => {
+                    rowObject[header] = index < cells.length ? cells[index].trim() : '';
+                });
+                const dataRowIndex = currentLine - 1;
+                console.log(`更新表单显示第${dataRowIndex + 1}行:`, rowObject);
+                sidebarProvider.selectRow(rowObject, dataRowIndex, excelRowNumber, true);
+            }
+            else {
+                // 超出数据范围或无效行，但仍然需要更新当前行号
+                console.log(`当前行超出文档范围: 行${excelRowNumber}，文档行数: ${lines.length}`);
+                // 即使超出数据范围，也要确保侧边栏显示正确的行号
+                sidebarProvider.selectRow({}, -1, excelRowNumber, true);
+            }
+        }, 50);
     };
-    // 更新编辑器中的单元格
     // 更新编辑器中的单元格 - 修复表单到编辑器的绑定
-    // 更新编辑器中的单元格
     const updateCellInEditor = async (rowIndex, column, value) => {
         if (!currentExcelData || !currentEditor) {
             console.warn('[Extension] 无法更新单元格: 没有Excel数据或编辑器');
@@ -358,89 +402,94 @@ function activate(context) {
             return;
         }
         console.log(`[Extension] 开始更新单元格: 行${rowIndex + 1}, 列"${column}", 值: "${value}"`);
-        if (rowIndex >= 0 && rowIndex < currentExcelData.rows.length) {
-            // 更新内存数据
-            currentExcelData.rows[rowIndex][columnIndex] = value;
-            // Excel行号是行索引+2（表头行+1，行号从1开始）
-            const excelRowNumber = rowIndex + 2;
-            try {
-                const editor = currentEditor;
-                const document = editor.document;
-                // 获取要更新的行
-                const lineNumber = excelRowNumber - 1; // 转换为编辑器行号（0-based）
-                console.log(`[Extension] 编辑器行号: ${lineNumber + 1} (0-based: ${lineNumber})`);
-                if (lineNumber >= document.lineCount) {
-                    console.warn(`[Extension] 行号 ${lineNumber + 1} 超出文档范围`);
-                    return;
-                }
-                const lineText = document.lineAt(lineNumber).text;
-                console.log(`[Extension] 原始行文本: "${lineText}"`);
-                let cells;
-                // 解析行
-                if (lineText.includes('\t')) {
-                    cells = lineText.split('\t');
-                }
-                else if (lineText.includes(',')) {
-                    cells = lineText.split(',');
-                }
-                else {
-                    cells = [lineText];
-                }
-                console.log(`[Extension] 解析后的单元格:`, cells);
-                // 确保cells数组足够长
-                while (cells.length <= columnIndex) {
-                    cells.push('');
-                }
-                // 更新单元格
-                const oldValue = cells[columnIndex];
-                cells[columnIndex] = value;
-                // 重新构建行文本
-                const newLineText = cells.join('\t');
-                console.log(`[Extension] 新行文本: "${newLineText}"`);
-                // 如果值没有变化，跳过更新
-                if (oldValue === value) {
-                    console.log(`[Extension] 值未变化，跳过更新`);
-                    return;
-                }
-                // 标记扩展正在编辑
-                isEditorChangeFromExtension = true;
-                // 应用编辑
-                const edit = new vscode.WorkspaceEdit();
-                const lineRange = new vscode.Range(new vscode.Position(lineNumber, 0), new vscode.Position(lineNumber, lineText.length));
-                edit.replace(document.uri, lineRange, newLineText);
-                // 使用await确保编辑完成
-                const success = await vscode.workspace.applyEdit(edit);
-                if (success) {
-                    console.log(`[Extension] ✅ 成功更新: 第${excelRowNumber}行 "${column}" = "${value}"`);
-                    // 更新内存中的sheetData
-                    if (currentExcelData.sheetData[rowIndex + 1]) {
-                        currentExcelData.sheetData[rowIndex + 1][columnIndex] = value;
-                    }
-                    // 更新最后修改时间
-                    lastFormUpdateTime = Date.now();
-                }
-                else {
-                    console.error('[Extension] ❌ 应用编辑失败');
-                }
-                // 重置标志
-                setTimeout(() => {
-                    isEditorChangeFromExtension = false;
-                }, 100);
+        // Excel行号是行索引+2（表头行+1，行号从1开始）
+        const excelRowNumber = rowIndex + 2;
+        try {
+            const editor = currentEditor;
+            const document = editor.document;
+            // 获取要更新的行 - 直接基于编辑器实际行数判断，不依赖可能过时的内存数据
+            const lineNumber = excelRowNumber - 1; // 转换为编辑器行号（0-based）
+            console.log(`[Extension] 编辑器行号: ${lineNumber + 1} (0-based: ${lineNumber})`);
+            // 检查行是否存在于编辑器中
+            if (lineNumber < 1 || lineNumber >= document.lineCount) {
+                console.warn(`[Extension] 行号 ${lineNumber + 1} 超出文档范围`);
+                return;
             }
-            catch (error) {
-                console.error('[Extension] ❌ 更新编辑器单元格失败:', error);
-                isEditorChangeFromExtension = false;
+            // 如果内存数据中的行索引超出范围，先扩展内存数据
+            if (rowIndex >= currentExcelData.rows.length) {
+                console.log(`[Extension] 行索引 ${rowIndex} 超出内存数据范围，正在扩展内存数据...`);
+                // 扩展rows数组到足够大
+                while (currentExcelData.rows.length <= rowIndex) {
+                    currentExcelData.rows.push(new Array(currentExcelData.headers.length).fill(''));
+                }
             }
-            // 标记正在编辑表单
-            isEditingForm = true;
-            // 2秒后重置编辑状态
+            const lineText = document.lineAt(lineNumber).text;
+            console.log(`[Extension] 原始行文本: "${lineText}"`);
+            let cells;
+            // 解析行
+            if (lineText.includes('\t')) {
+                cells = lineText.split('\t');
+            }
+            else if (lineText.includes(',')) {
+                cells = lineText.split(',');
+            }
+            else {
+                cells = [lineText];
+            }
+            console.log(`[Extension] 解析后的单元格:`, cells);
+            // 确保cells数组足够长
+            while (cells.length <= columnIndex) {
+                cells.push('');
+            }
+            // 更新单元格
+            const oldValue = cells[columnIndex];
+            cells[columnIndex] = value;
+            // 重新构建行文本
+            const newLineText = cells.join('\t');
+            console.log(`[Extension] 新行文本: "${newLineText}"`);
+            // 如果值没有变化，跳过更新
+            if (oldValue === value) {
+                console.log(`[Extension] 值未变化，跳过更新`);
+                return;
+            }
+            // 标记扩展正在编辑
+            isEditorChangeFromExtension = true;
+            // 应用编辑
+            const edit = new vscode.WorkspaceEdit();
+            const lineRange = new vscode.Range(new vscode.Position(lineNumber, 0), new vscode.Position(lineNumber, lineText.length));
+            edit.replace(document.uri, lineRange, newLineText);
+            // 使用await确保编辑完成
+            const success = await vscode.workspace.applyEdit(edit);
+            if (success) {
+                console.log(`[Extension] ✅ 成功更新: 第${excelRowNumber}行 "${column}" = "${value}"`);
+                // 更新内存数据 - 确保更新内存中的行数据
+                currentExcelData.rows[rowIndex][columnIndex] = value;
+                // 更新内存中的sheetData - 确保sheetData足够长
+                while (currentExcelData.sheetData.length <= rowIndex + 1) {
+                    currentExcelData.sheetData.push(new Array(currentExcelData.headers.length).fill(''));
+                }
+                currentExcelData.sheetData[rowIndex + 1][columnIndex] = value;
+                // 更新最后修改时间
+                lastFormUpdateTime = Date.now();
+            }
+            else {
+                console.error('[Extension] ❌ 应用编辑失败');
+            }
+            // 重置标志
             setTimeout(() => {
-                isEditingForm = false;
-            }, 2000);
+                isEditorChangeFromExtension = false;
+            }, 100);
         }
-        else {
-            console.warn(`[Extension] 行索引 ${rowIndex} 超出数据行范围 [0, ${currentExcelData.rows.length})`);
+        catch (error) {
+            console.error('[Extension] ❌ 更新编辑器单元格失败:', error);
+            isEditorChangeFromExtension = false;
         }
+        // 标记正在编辑表单
+        isEditingForm = true;
+        // 2秒后重置编辑状态
+        setTimeout(() => {
+            isEditingForm = false;
+        }, 2000);
     };
     // 处理编辑器内容变化
     const handleEditorContentChange = () => {
@@ -448,7 +497,7 @@ function activate(context) {
             return;
         }
         // 如果变化是由扩展引起的，跳过
-        if (isEditorChangeFromExtension || isEditingForm) {
+        if (isEditorChangeFromExtension) {
             return;
         }
         // 清除之前的定时器
@@ -463,45 +512,39 @@ function activate(context) {
             const filePath = editor.document.fileName;
             if (currentExcelFile !== filePath)
                 return;
-            // 重新解析当前行
-            const cursorPosition = editor.selection.active;
-            const currentLine = cursorPosition.line;
-            if (currentLine <= 0 || !currentExcelData) {
-                return;
-            }
-            const dataRowIndex = currentLine - 1;
-            if (dataRowIndex >= 0 && dataRowIndex < currentExcelData.rows.length) {
-                // 读取当前行数据
-                const lineText = editor.document.lineAt(currentLine).text;
-                let cells;
-                if (lineText.includes('\t')) {
-                    cells = lineText.split('\t');
-                }
-                else if (lineText.includes(',')) {
-                    cells = lineText.split(',');
-                }
-                else {
-                    cells = [lineText];
-                }
+            // 重新解析整个文档内容以更新内存数据
+            const newExcelData = parseEditorContent(editor);
+            if (newExcelData) {
                 // 更新内存中的数据
-                for (let i = 0; i < currentExcelData.headers.length && i < cells.length; i++) {
-                    currentExcelData.rows[dataRowIndex][i] = cells[i].trim();
-                }
-                // 更新表单显示
+                currentExcelData = newExcelData;
+                // 更新侧边栏显示，包括行数统计
                 if (sidebarProvider) {
-                    const rowObject = {};
-                    currentExcelData.headers.forEach((header, index) => {
-                        const value = dataRowIndex < currentExcelData.rows.length &&
-                            index < currentExcelData.rows[dataRowIndex].length
-                            ? currentExcelData.rows[dataRowIndex][index]
-                            : '';
-                        rowObject[header] = value;
-                    });
-                    sidebarProvider.selectRow(rowObject, dataRowIndex, currentLine + 1, true);
+                    sidebarProvider.setData(newExcelData, filePath);
+                    sidebarProvider.refresh();
                 }
             }
-        }, 300);
+            // 内容变化后，重新更新当前行数据
+            updateCurrentLineData(editor);
+        }, 100); // 缩短延迟时间，提高响应速度
     };
+    // 监听文档保存事件，确保保存后侧边栏显示更新
+    context.subscriptions.push(vscode.workspace.onDidSaveTextDocument((document) => {
+        if (!isExtensionActive || !isExcelFile(document.fileName) || !currentEditor) {
+            return;
+        }
+        // 检查是否是当前Excel文件
+        if (currentExcelFile === document.fileName) {
+            // 重新解析文档内容并更新显示
+            const newExcelData = parseEditorContent(currentEditor);
+            if (newExcelData) {
+                currentExcelData = newExcelData;
+                if (sidebarProvider) {
+                    sidebarProvider.setData(newExcelData, document.fileName);
+                    sidebarProvider.refresh();
+                }
+            }
+        }
+    }));
     // 添加新行
     const addNewRow = (rowData) => {
         if (!currentExcelData || !currentEditor) {
@@ -510,7 +553,13 @@ function activate(context) {
         }
         const newRow = currentExcelData.headers.map((header) => rowData[header] || '');
         const newRowIndex = currentExcelData.rows.length;
+        // 更新内存数据
         currentExcelData.rows.push(newRow);
+        // 确保sheetData也同步更新
+        while (currentExcelData.sheetData.length <= newRowIndex + 1) {
+            currentExcelData.sheetData.push(new Array(currentExcelData.headers.length).fill(''));
+        }
+        currentExcelData.sheetData[newRowIndex + 1] = [...newRow];
         const newRowCount = currentExcelData.rows.length;
         console.log(`已添加新行，总行数: ${newRowCount}`);
         try {
@@ -529,6 +578,8 @@ function activate(context) {
                 const headersText = currentExcelData.headers.join('\t');
                 edit.insert(document.uri, new vscode.Position(0, 0), headersText + '\n' + newLineText);
             }
+            // 标记扩展正在编辑
+            isEditorChangeFromExtension = true;
             vscode.workspace.applyEdit(edit).then(() => {
                 // 移动光标到新添加的行
                 setTimeout(() => {
@@ -548,12 +599,18 @@ function activate(context) {
                             sidebarProvider.selectRow(rowObject, newRowIndex, excelRowNumber, true);
                         }
                     }
+                    // 重置扩展编辑标志
+                    setTimeout(() => {
+                        isEditorChangeFromExtension = false;
+                    }, 100);
                 }, 100);
             });
         }
         catch (error) {
             console.error('在编辑器添加新行失败:', error);
             vscode.window.showErrorMessage(`添加新行失败: ${error instanceof Error ? error.message : String(error)}`);
+            // 出错时也要重置标志
+            isEditorChangeFromExtension = false;
         }
         if (sidebarProvider) {
             sidebarProvider.refresh();
@@ -880,6 +937,19 @@ class ExcelSidebarProvider {
             });
         }
     }
+    // 添加新方法：更新行统计信息
+    updateLineStats(rowCount, currentLine) {
+        if (this._view) {
+            this._view.webview.postMessage({
+                type: 'data',
+                headers: this._excelData?.headers || [],
+                currentFile: this._currentFile,
+                rowCount: rowCount,
+                currentLine: currentLine,
+                isExtensionActive: this._isExtensionActive
+            });
+        }
+    }
     clearForm() {
         this._currentRowIndex = -1;
         this._currentLineNumber = 0;
@@ -924,13 +994,29 @@ class ExcelSidebarProvider {
             return;
         }
         const headers = this._excelData.headers;
-        const rowCount = this._excelData.rows.length;
+        let rowCount = this._excelData.rows.length;
+        let currentLine = this._currentLineNumber;
+        // 如果当前有活动编辑器，获取实际的文档行数
+        const activeEditor = vscode.window.activeTextEditor;
+        if (activeEditor && this._currentFile && activeEditor.document.fileName === this._currentFile) {
+            const documentLineCount = activeEditor.document.lineCount;
+            // 编辑器中的总行数应该等于文档的总行数
+            rowCount = documentLineCount;
+            // 当前行号应该取自编辑器的当前光标位置
+            if (activeEditor.selection && activeEditor.selection.active) {
+                currentLine = activeEditor.selection.active.line + 1; // 转换为1-based行号
+            }
+        }
+        else {
+            // 没有活动编辑器时，使用内存中的数据行数（加表头行）
+            rowCount = this._excelData.rows.length + 1; // +1 for header row
+        }
         this._view.webview.postMessage({
             type: 'data',
             headers: headers,
             currentFile: this._currentFile,
             rowCount: rowCount,
-            currentLine: this._currentLineNumber,
+            currentLine: currentLine,
             isExtensionActive: this._isExtensionActive
         });
     }

@@ -12,6 +12,7 @@
   let lastUpdateTime = 0;
   let isUpdatingFromVSCode = false;
   let pendingUpdate = false;
+  let isRenderingForm = false;
   
   // 初始化
   window.addEventListener('message', event => {
@@ -141,9 +142,9 @@
       fileStats.innerHTML = `
         <span>行: ${rowCount}</span>
         <span>列: ${headers.length}</span>
-        <span class="current-line">当前: ${currentRowIndex >= 0 ? '第' + (currentRowIndex + 1) + '行' : '无'}</span>
+        <span class="current-line">当前: ${currentLineNumber > 0 ? currentLineNumber : '无'}</span>
       `;
-      
+
     } else if (isExtensionActive) {
       // 插件激活但没有Excel文件
       emptyState.style.display = 'flex';
@@ -195,6 +196,7 @@
     const formFields = document.getElementById('formFields');
     if (!formFields) return;
     
+    isRenderingForm = true;
     formFields.innerHTML = '';
     
     if (headers.length === 0 || !isExtensionActive) {
@@ -293,6 +295,11 @@
       formGroup.appendChild(textarea);
       formFields.appendChild(formGroup);
     });
+    
+    // 表单渲染完成
+    setTimeout(() => {
+      isRenderingForm = false;
+    }, 10);
   }
   
   // 获取Excel列字母
@@ -312,6 +319,15 @@
   function selectRow(rowData, rowIndex, lineNumber) {
     if (isEditing || !isExtensionActive) {
       console.log(`[Sidebar] 跳过选择行: isEditing=${isEditing}, isExtensionActive=${isExtensionActive}`);
+      return;
+    }
+    
+    // 如果表单正在渲染，延迟执行selectRow
+    if (isRenderingForm) {
+      console.log(`[Sidebar] 表单正在渲染，延迟执行selectRow`);
+      setTimeout(() => {
+        selectRow(rowData, rowIndex, lineNumber);
+      }, 50);
       return;
     }
     
