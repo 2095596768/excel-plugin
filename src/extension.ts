@@ -1210,7 +1210,7 @@ webviewView.webview.onDidReceiveMessage(async (data: any) => {
     
     const statusText = isExtensionActive ? '已激活' : '已关闭';
     const statusClass = isExtensionActive ? 'active' : 'inactive';
-    const hotkeyText = 'Ctrl+Shift+E';
+    const hotkeyText = 'Ctrl+0';
     
     return `<!DOCTYPE html>
     <html lang="zh-CN">
