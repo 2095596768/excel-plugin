@@ -2,7 +2,7 @@
   "name": "excel-plugin",
   "displayName": "ExcelPlugin",
   "description": "Excel文件编辑器 - 支持在VS Code中编辑Excel文件，双向绑定表单与编辑器",
-  "version": "v1.0.0",
+  "version": "1.0.0",
   "publisher": "zhaoxuandong",
   "engines": {
     "vscode": "^1.107.0"
