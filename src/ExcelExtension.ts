@@ -27,25 +27,95 @@ export function activate(context: vscode.ExtensionContext) {
   console.log('Excel编辑器扩展已激活');
 
   try {
-    const sidebarProvider = new ExcelSidebarProvider('excelPlugin.sidebar', context);
-    const syncManager = new SyncManagerV2(sidebarProvider);
+    // 读取激活状态配置
+    const config = vscode.workspace.getConfiguration('excelPlugin');
+    const activateOnStart = config.get<boolean>('activateOnStart', true);
+    console.log(`[ExcelExtension] 启动时激活状态: ${activateOnStart}`);
 
-    let isExtensionActive = true;
+    let isExtensionActive = activateOnStart;
     let currentExcelFile: string | undefined = undefined;
     let currentExcelData: ExcelData | undefined = undefined;
     let currentEditor: vscode.TextEditor | undefined = undefined;
     let headerRowIndex = 1;
     let isEditorChangeFromExtension = false;
     let isEditingForm = false;
+    let isUpdatingConfig = false;
+
+    const sidebarProvider = new ExcelSidebarProvider('excelPlugin.sidebar', context, isExtensionActive);
+    const syncManager = new SyncManagerV2(sidebarProvider);
 
     const statusBarItem = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
       100
     );
-    statusBarItem.text = "$(excel) Excel编辑";
-    statusBarItem.tooltip = "Excel编辑器已启用 (点击关闭)";
+    // 根据激活状态设置初始状态栏
+    if (isExtensionActive) {
+      statusBarItem.text = "$(excel) Excel编辑";
+      statusBarItem.tooltip = "Excel编辑器已启用 (点击关闭)";
+    } else {
+      statusBarItem.text = "$(circle-slash) Excel编辑";
+      statusBarItem.tooltip = "Excel编辑器已关闭 (点击开启)";
+    }
     statusBarItem.command = 'excelPlugin.toggleStatus';
     statusBarItem.show();
+
+    // 同步激活状态到侧边栏
+    sidebarProvider.updateStatus(isExtensionActive);
+
+    // 更新配置项的函数
+    const updateActivateOnStartConfig = async (value: boolean) => {
+      try {
+        isUpdatingConfig = true;
+        const config = vscode.workspace.getConfiguration('excelPlugin');
+        await config.update('activateOnStart', value, vscode.ConfigurationTarget.Global);
+        console.log(`[ExcelExtension] 已更新 activateOnStart 配置为: ${value}`);
+      } catch (error) {
+        console.error('[ExcelExtension] 更新配置失败:', error);
+      } finally {
+        isUpdatingConfig = false;
+      }
+    };
+
+    // 初始化插件的函数
+    const initializePlugin = () => {
+      console.log('[ExcelExtension] 初始化插件');
+      // 重置插件状态
+      currentExcelFile = undefined;
+      currentExcelData = undefined;
+      headerRowIndex = 1;
+      
+      // 检查当前激活的编辑器
+      const editor = vscode.window.activeTextEditor;
+      if (editor) {
+        currentEditor = editor;
+        autoLoadFile(editor);
+      } else {
+        console.log('[ExcelExtension] 初始化插件: 无激活的编辑器');
+      }
+    };
+
+    // 切换插件状态的函数
+    const togglePluginStatus = async () => {
+      const newValue = !isExtensionActive;
+      isExtensionActive = newValue;
+      
+      // 更新状态栏
+      updateStatusBar();
+      
+      // 同步激活状态到侧边栏
+      sidebarProvider.updateStatus(isExtensionActive);
+      
+      // 更新配置项
+      await updateActivateOnStartConfig(newValue);
+      
+      if (isExtensionActive) {
+        // 如果切换到已激活状态，初始化插件
+        initializePlugin();
+      } else {
+        // 如果切换到未激活状态，清空表单
+        sidebarProvider.clearForm();
+      }
+    };
 
     const updateStatusBar = () => {
       if (isExtensionActive) {
@@ -323,12 +393,20 @@ export function activate(context: vscode.ExtensionContext) {
 
     const autoLoadFile = async (editor: vscode.TextEditor) => {
       if (!isExtensionActive || !editor) {
+        console.log('[ExcelExtension] 插件未激活或编辑器不存在，跳过 autoLoadFile');
         return;
       }
 
       const filePath = editor.document.fileName;
+      const isExcel = isExcelFile(filePath);
+      console.log('[ExcelExtension] autoLoadFile 执行:', {
+        filePath,
+        isExcel,
+        documentScheme: editor.document.uri.scheme
+      });
 
-      if (!isExcelFile(filePath)) {
+      if (!isExcel) {
+        console.log('[ExcelExtension] 非 Excel 文件，清空数据');
         sidebarProvider.clearData();
         return;
       }
@@ -414,6 +492,12 @@ export function activate(context: vscode.ExtensionContext) {
     };
 
     const updateCurrentLineData = (editor: vscode.TextEditor) => {
+      // 检查 Webview 是否可见
+      if (!sidebarProvider.isWebviewVisible()) {
+        console.log('[ExcelExtension] Webview 不可见，跳过更新当前行数据');
+        return;
+      }
+      
       if (!editor || isEditingForm || isEditorChangeFromExtension) {
         return;
       }
@@ -561,6 +645,12 @@ export function activate(context: vscode.ExtensionContext) {
 
     const handleCursorChange = () => {
       try {
+        // 检查 Webview 是否可见
+        if (!sidebarProvider.isWebviewVisible()) {
+          console.log('[ExcelExtension] Webview 不可见，跳过光标变化处理');
+          return;
+        }
+        
         if (!isExtensionActive || !currentEditor) {
           return;
         }
@@ -684,13 +774,8 @@ export function activate(context: vscode.ExtensionContext) {
       }
     };
 
-    const toggleStatus = () => {
-      isExtensionActive = !isExtensionActive;
-      updateStatusBar();
-
-      if (!isExtensionActive) {
-        sidebarProvider.clearForm();
-      }
+    const toggleStatus = async () => {
+      await togglePluginStatus();
     };
 
     const addRow = async (rowData?: any, copyCurrentRow?: boolean) => {
@@ -922,15 +1007,16 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.commands.executeCommand('workbench.action.closeSidebar');
     };
 
-    const activatePlugin = () => {
-      isExtensionActive = true;
-      updateStatusBar();
+    const activatePlugin = async () => {
+      if (!isExtensionActive) {
+        await togglePluginStatus();
+      }
     };
 
-    const deactivatePlugin = () => {
-      isExtensionActive = false;
-      updateStatusBar();
-      sidebarProvider.clearForm();
+    const deactivatePlugin = async () => {
+      if (isExtensionActive) {
+        await togglePluginStatus();
+      }
     };
 
     context.subscriptions.push(
@@ -947,15 +1033,26 @@ export function activate(context: vscode.ExtensionContext) {
           updateCurrentLineData(currentEditor);
         }
       }),
+      vscode.commands.registerCommand('excelPlugin.reinitialize', () => {
+        console.log('[ExcelExtension] 执行插件重新初始化');
+        initializePlugin();
+      }),
       vscode.commands.registerCommand('excelPlugin.showSidebar', showSidebar),
       vscode.commands.registerCommand('excelPlugin.hideSidebar', hideSidebar),
       vscode.commands.registerCommand('excelPlugin.activate', activatePlugin),
       vscode.commands.registerCommand('excelPlugin.deactivate', deactivatePlugin),
 
       vscode.window.onDidChangeActiveTextEditor(editor => {
+        console.log('[ExcelExtension] 编辑器切换事件触发:', {
+          editor: editor ? editor.document.fileName : 'undefined',
+          editorType: editor ? editor.document.uri.scheme : 'undefined'
+        });
         if (editor) {
           currentEditor = editor;
           autoLoadFile(editor);
+        } else {
+          console.log('[ExcelExtension] 编辑器为 undefined，清空数据');
+          sidebarProvider.clearData();
         }
       }),
 
@@ -979,8 +1076,29 @@ export function activate(context: vscode.ExtensionContext) {
 
       vscode.workspace.onDidChangeConfiguration(event => {
         try {
+          if (isUpdatingConfig) {
+            console.log('[ExcelExtension] 配置正在更新中，跳过事件处理');
+            return;
+          }
+          
           if (event.affectsConfiguration('excelPlugin.sync')) {
             syncManager.refreshConfig();
+          }
+          if (event.affectsConfiguration('excelPlugin.activateOnStart')) {
+            const newActivateOnStart = config.get<boolean>('activateOnStart', true);
+            if (newActivateOnStart !== isExtensionActive) {
+              console.log(`[ExcelExtension] 配置变更，更新激活状态: ${isExtensionActive} → ${newActivateOnStart}`);
+              isExtensionActive = newActivateOnStart;
+              updateStatusBar();
+              sidebarProvider.updateStatus(isExtensionActive);
+              if (isExtensionActive) {
+                // 如果切换到已激活状态，初始化插件
+                initializePlugin();
+              } else {
+                // 如果切换到未激活状态，清空表单
+                sidebarProvider.clearForm();
+              }
+            }
           }
         } catch (error) {
           console.error('[ExcelExtension] onDidChangeConfiguration 错误:', error);

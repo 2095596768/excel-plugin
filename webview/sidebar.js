@@ -160,6 +160,11 @@
           updateHeaderRowSelectorMax();
           updateCurrentRowSelectorMax();
           break;
+        case 'status':
+          console.log('[Sidebar] 收到状态更新消息:', message.isExtensionActive);
+          isExtensionActive = message.isExtensionActive;
+          updateUI();
+          break;
       }
     } catch (error) {
       console.error('[Sidebar] 处理消息时出错:', error);
@@ -529,6 +534,7 @@
     const hasData = headers.length > 0 && isExtensionActive && currentFile;
     const emptyState = document.getElementById('emptyState');
     const formWrapper = document.getElementById('formWrapper');
+    const formPlaceholder = document.getElementById('formPlaceholder');
     const fileInfo = document.getElementById('fileInfo');
     const fileStats = document.getElementById('fileStats');
     const statusIndicator = document.getElementById('statusIndicator');
@@ -573,6 +579,9 @@
       if (formWrapper) {
         formWrapper.style.display = 'flex';
       }
+      if (formPlaceholder) {
+        formPlaceholder.style.display = 'flex';
+      }
       mainContent.style.backgroundColor = 'transparent';
       
       if (currentFile) {
@@ -598,6 +607,9 @@
       if (formWrapper) {
         formWrapper.style.display = 'none';
       }
+      if (formPlaceholder) {
+        formPlaceholder.style.display = 'none';
+      }
       mainContent.style.backgroundColor = 'var(--vscode-editorWidget-background)';
       
       fileInfo.innerHTML = '<div>未打开Excel文件</div>';
@@ -611,6 +623,9 @@
       emptyState.style.display = 'flex';
       if (formWrapper) {
         formWrapper.style.display = 'none';
+      }
+      if (formPlaceholder) {
+        formPlaceholder.style.display = 'none';
       }
       mainContent.style.backgroundColor = 'var(--vscode-editorWidget-background)';
       

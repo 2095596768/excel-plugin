@@ -13,7 +13,7 @@ ExcelPlugin 是一个强大的 VS Code 扩展，旨在将 Excel 电子表格的�
 - **核心编辑**: 支持添加新行、更新单元格数据等基本操作。
 - **状态控制**: 可以方便地激活、停用或切换编辑器的工作状态。
 - **双向同步**: 支持表单与编辑器内容的双向数据同步，可在设置中配置各种同步选项。
-- **自动加载**: 可配置在打开 Excel 文件时自动加载插件视图。
+- **启动激活配置**: 可配置在启动时是否自动激活插件，设置为 true 会直接将插件置为已激活状态，false 会直接将插件置为未激活状态。
 - **快捷键支持**: 为常用操作（如切换状态）提供了默认的键盘快捷键。
 - **实时数据更新**: 当用户在编辑器中添加新行或修改内容时，内存数据会实时同步更新。
 - **数据一致性**: 确保表单数据与编辑器中实际行数据保持一致，避免数据闪烁和清空问题。
@@ -92,14 +92,27 @@ ExcelPlugin 是一个强大的 VS Code 扩展，旨在将 Excel 电子表格的�
 
 | 设置项 (Setting) | 类型 (Type) | 默认值 (Default) | 描述 (Description) |
 | :--- | :--- | :--- | :--- |
-| `excelPlugin.autoLoad` | `boolean` | `true` | 是否在打开 Excel 文件时自动加载插件。 |
-| `excelPlugin.sync.headerToForm` | `boolean` | `true` | 同步1：表首行值修改 → 实时同步渲染表单项（表头） |
-| `excelPlugin.sync.editorToForm.lessThan` | `boolean` | `true` | 同步3：表首行值 < 光标所在行值 → 编辑器 ↔ 表单项双向同步 |
-| `excelPlugin.sync.editorToForm.equal` | `boolean` | `true` | 同步4：表首行值 = 光标所在行值 → 编辑器 ↔ 表单项双向同步 |
-| `excelPlugin.sync.editorToForm.greaterThan` | `boolean` | `true` | 同步5：表首行值 > 光标所在行值 → 编辑器 ↔ 表单项双向同步 |
-| `excelPlugin.sync.formToHeader` | `boolean` | `true` | 同步6：表首行值 = 光标所在行值 → 表单项修改 → 同步到表头 |
-| `excelPlugin.sync.cursorRowToCurrentRowInput` | `boolean` | `true` | 同步2：光标所在行变动 → 实时同步到当前行输入框 |
-| `excelPlugin.sync.currentRowInputToCursor` | `boolean` | `true` | 同步2：当前行输入框值变化 → 实时同步光标位置（移到行首） |
+| `excelPlugin.activateOnStart` | `boolean` | `true` | 是否在启动时激活插件。设置为 true 会在启动时直接将插件置为已激活状态，false 会直接将插件置为未激活状态。 |
+
+## 状态管理
+
+### 1. 启动激活配置
+通过设置 `excelPlugin.activateOnStart` 配置项，可以控制插件在 VS Code 启动时的激活状态：
+- `true`：启动时插件自动激活，状态栏显示为已激活状态，侧边栏展示正常功能界面
+- `false`：启动时插件保持未激活状态，状态栏显示为未激活状态，侧边栏展示未激活页面
+
+### 2. 状态栏操作
+- **已激活状态**：状态栏显示 "$(excel) Excel编辑"，点击可切换为未激活状态
+- **未激活状态**：状态栏显示 "$(circle-slash) Excel编辑"，点击可切换为已激活状态
+
+### 3. 快捷键操作
+- `Ctrl+0` (Windows/Linux) 或 `Cmd+0` (macOS)：切换插件激活/未激活状态
+- 切换状态时，配置项会自动同步更新
+
+### 4. 状态管理逻辑
+- **插件显示时**：优先检查 `activateOnStart` 配置，根据配置值初始化插件状态
+- **状态切换时**：更新配置项并重新初始化插件（激活时）或展示未激活页面（未激活时）
+- **未激活状态**：插件停止处理所有内容，包括检查编辑器文件是否是 Excel 文件以及同步数据
 
 ## 常见问题 (FAQ)
 
@@ -111,6 +124,9 @@ A: 已经修复了内存数据与编辑器同步的问题。现在当你添加�
 
 ### Q: 如何手动安装插件？
 A: 请参考上面的"方法二：从 GitHub Release 下载安装"部分。
+
+### Q: 如何控制插件在启动时的激活状态？
+A: 你可以在 VS Code 设置中搜索 `excelPlugin.activateOnStart` 配置项，设置为 true 会在启动时直接将插件置为已激活状态，false 会直接将插件置为未激活状态。
 
 
 ## 开发 (Development)

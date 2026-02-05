@@ -8,12 +8,15 @@ export class ExcelSidebarProvider {
   private _templateLoader: HtmlTemplateLoader;
   private _formTemplateLoaded = false;
   private _pendingDataMessage: any = null;
+  private _isExtensionActive: boolean = true;
 
   constructor(
     private readonly _viewId: string,
-    private readonly _extensionContext: vscode.ExtensionContext
+    private readonly _extensionContext: vscode.ExtensionContext,
+    isActive: boolean = true
   ) {
     this._extensionUri = _extensionContext.extensionUri;
+    this._isExtensionActive = isActive;
     this._templateLoader = new HtmlTemplateLoader(this._extensionUri, {
       enableLogging: false, // 禁用日志输出以提高性能
       cacheSize: 50, // 合理的缓存大小
@@ -48,10 +51,26 @@ export class ExcelSidebarProvider {
     webviewView.onDidChangeVisibility(() => {
       console.log('[ExcelSidebarProvider] Webview 可见性变化:', webviewView.visible);
       if (webviewView.visible && this._view) {
-        console.log('[ExcelSidebarProvider] Webview 可见，重新设置 HTML');
-        const newHtml = this._getHtmlForWebview(this._view.webview);
-        this._view.webview.html = newHtml;
-        this._view.webview.postMessage({ type: 'refresh' });
+        console.log('[ExcelSidebarProvider] Webview 可见，发送保存的激活状态');
+        // 发送保存的激活状态
+        this._view.webview.postMessage({
+          type: 'status',
+          isExtensionActive: this._isExtensionActive
+        });
+        
+        // 如果插件激活，加载表单模板
+        if (this._isExtensionActive) {
+          console.log('[ExcelSidebarProvider] Webview 可见且插件激活，加载表单模板');
+          this._loadFormTemplate(this._view.webview);
+        }
+        
+        // 触发 VSCode 命令重新初始化插件
+        try {
+          console.log('[ExcelSidebarProvider] 触发插件重新初始化');
+          vscode.commands.executeCommand('excelPlugin.reinitialize');
+        } catch (error) {
+          console.error('[ExcelSidebarProvider] 触发插件重新初始化错误:', error);
+        }
       }
     });
 
@@ -63,11 +82,24 @@ export class ExcelSidebarProvider {
     setTimeout(() => {
       console.log('[ExcelSidebarProvider] 延迟加载表单模板');
       this._loadFormTemplate(webviewView.webview);
+      // 模板加载后发送激活状态
+      setTimeout(() => {
+        webviewView.webview.postMessage({
+          type: 'status',
+          isExtensionActive: this._isExtensionActive
+        });
+      }, 50);
     }, 100);
   }
 
   private _loadFormTemplate(webview: vscode.Webview): void {
     try {
+      // 只有当插件激活时才加载表单模板
+      if (!this._isExtensionActive) {
+        console.log('[ExcelSidebarProvider] 插件未激活，跳过表单模板加载');
+        return;
+      }
+      
       console.log('[ExcelSidebarProvider] 开始加载表单模板');
       const formTemplate = this._templateLoader.loadFormTemplate();
       console.log('[ExcelSidebarProvider] 表单模板加载完成，准备发送消息');
@@ -118,10 +150,34 @@ export class ExcelSidebarProvider {
     }
   }
 
+  public updateStatus(isActive: boolean): void {
+    try {
+      console.log('[ExcelSidebarProvider] 更新激活状态:', isActive);
+      const wasActive = this._isExtensionActive;
+      this._isExtensionActive = isActive;
+      this.postMessage({
+        type: 'status',
+        isExtensionActive: isActive
+      });
+      
+      // 如果从非激活状态切换到激活状态，加载表单模板
+      if (!wasActive && isActive && this._view && this._view.webview) {
+        console.log('[ExcelSidebarProvider] 从非激活状态切换到激活状态，加载表单模板');
+        this._loadFormTemplate(this._view.webview);
+      }
+    } catch (error) {
+      console.error('[ExcelSidebarProvider] updateStatus 错误:', error);
+    }
+  }
+
+  public isWebviewVisible(): boolean {
+    return !!this._view && this._view.visible;
+  }
+
   public postMessage(message: any): void {
     try {
-      if (!this._view || !this._view.webview) {
-        console.warn('[ExcelSidebarProvider] Webview 不可用，消息未发送:', message.type);
+      if (!this._view || !this._view.webview || !this._view.visible) {
+        console.warn('[ExcelSidebarProvider] Webview 不可用或不可见，消息未发送:', message.type);
         return;
       }
       console.log('[ExcelSidebarProvider] 发送消息:', message.type, message);
@@ -188,9 +244,10 @@ export class ExcelSidebarProvider {
   }
 
   public clearData(): void {
+    console.log('[ExcelSidebarProvider] 清空数据');
     this.postMessage({
       type: 'emptyData',
-      isExtensionActive: true
+      isExtensionActive: this._isExtensionActive
     });
   }
 

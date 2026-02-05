@@ -108,45 +108,10 @@
     "configuration": {
       "title": "ExcelPlugin",
       "properties": {
-        "excelPlugin.autoLoad": {
+        "excelPlugin.activateOnStart": {
           "type": "boolean",
           "default": true,
-          "description": "是否在打开Excel文件时自动加载"
-        },
-        "excelPlugin.sync.headerToForm": {
-          "type": "boolean",
-          "default": true,
-          "description": "同步1：表首行值修改 → 实时同步渲染表单项（表头）"
-        },
-        "excelPlugin.sync.editorToForm.lessThan": {
-          "type": "boolean",
-          "default": true,
-          "description": "同步3：表首行值 < 光标所在行值 → 编辑器 ↔ 表单项双向同步"
-        },
-        "excelPlugin.sync.editorToForm.equal": {
-          "type": "boolean",
-          "default": true,
-          "description": "同步4：表首行值 = 光标所在行值 → 编辑器 ↔ 表单项双向同步"
-        },
-        "excelPlugin.sync.editorToForm.greaterThan": {
-          "type": "boolean",
-          "default": true,
-          "description": "同步5：表首行值 > 光标所在行值 → 编辑器 ↔ 表单项双向同步"
-        },
-        "excelPlugin.sync.formToHeader": {
-          "type": "boolean",
-          "default": true,
-          "description": "同步6：表首行值 = 光标所在行值 → 表单项修改 → 同步到表头"
-        },
-        "excelPlugin.sync.cursorRowToCurrentRowInput": {
-          "type": "boolean",
-          "default": true,
-          "description": "同步2：光标所在行变动 → 实时同步到当前行输入框"
-        },
-        "excelPlugin.sync.currentRowInputToCursor": {
-          "type": "boolean",
-          "default": true,
-          "description": "同步2：当前行输入框值变化 → 实时同步光标位置（移到行首）"
+          "description": "是否在启动时激活插件"
         }
       }
     },
